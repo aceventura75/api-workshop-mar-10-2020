@@ -2,6 +2,8 @@ const range = require('express-range')
 const compression = require('compression')
 
 const express = require('express')
+//load cors lib
+const cors= require('cors')
 
 const data = require('./zips')
 const CitiesDB = require('./zipsdb')
@@ -10,6 +12,9 @@ const CitiesDB = require('./zipsdb')
 const db = CitiesDB(data);
 
 const app = express();
+
+//add cors to all routes
+app.use(cors());
 
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
@@ -58,7 +63,7 @@ app.get('/api/states/:state',
 //Content-type:application/x-www-from-urlencoded
 app.post('/api/city',
 	(req, resp) => {
-		const boday = req.body;
+		const body = req.body;
 		console.info('body', body)
 		if (!db.validateForm(body)) {
 			resp.status(400)
