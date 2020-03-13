@@ -1,6 +1,8 @@
 const { join } = require('path');
 const fs = require('fs');
 
+//load library
+const preconditions=require('express-preconditions')
 const cors = require('cors');
 const range = require('express-range')
 const compression = require('compression')
@@ -19,6 +21,10 @@ const CitiesDB = require('./zipsdb')
 const db = CitiesDB(data);
 
 const app = express();
+
+//disable xpress etag
+
+app.set ('etag', false)
 
 app.use(cors());
 app.use(express.json());
@@ -39,9 +45,13 @@ new OpenAPIValidator({
         // TODO GET /api/states
         app.get('/api/states',
             (req, resp) => { //handler
+                count++
+                console.info('in GET /api/state',count)
                 const result = db.findAllStates()
                 //status code
                 resp.status(200)
+                //set header,public,age=5 min
+                resp.set('cache-control',"public,max-age=300")
                 //set content-type
                 resp.type('application/json')
                 resp.set('X-genereated-on', (new Date()).toDateString())
@@ -50,8 +60,25 @@ new OpenAPIValidator({
             }
         )
 
+
+//calulate etag
+
+const options={
+    stateAsync:(req)=>{
+        const state= req.params.state
+        const limit = parseInt(req.query.limit) || 10;
+        const offset = parseInt(req.query.offset) || 0;
+        return Promise.resolve({
+            //"CA_0_10"
+            etag: '"${state}_${offset}_${limit}"'
+        })
+    }
+}
+   
+   
         // TODO GET /api/state/:state
         app.get('/api/state/:state',
+            preconditions(options),
             (req, resp) => { //handler
                 //Read the value from  the route:state
                 const state = req.params.state
@@ -66,6 +93,8 @@ new OpenAPIValidator({
                 resp.status(200)
                 //set content-type
                 resp.type('application/json')
+                //etag
+                resp.set("etag", '"${state}_${offset}_${limit}"')
                 resp.json(result)
 
             }
@@ -79,12 +108,13 @@ new OpenAPIValidator({
             (req, resp) => {
                 const body = req.body;
                 console.info('body', body)
-                if (!db.validateForm(body)) {
-                    resp.status(400)
-                    resp.type('application/json')
-                    resp.json({ 'message': 'incomplete form' })
-                    return
-                }
+           
+                // if (!db.validateForm(body)) {
+                //     resp.status(400)
+                //     resp.type('application/json')
+                //     resp.json({ 'message': 'incomplete form' })
+                //     return
+                // }
 
                 //insert db
                 //TODO loc = "number,number" => [ number, number ]
